@@ -1,0 +1,282 @@
+/* ================================
+   Dashboard intro & snelkoppelingen
+   ================================ */
+.dj-srm-dashboard .intro {
+  background: #f8f9fb;
+  padding: 15px;
+  border-left: 4px solid #0073aa;
+  margin-bottom: 20px;
+  border-radius: 6px;
+}
+
+.dj-srm-dashboard .quick-links {
+  margin: 15px 0 25px;
+}
+.dj-srm-dashboard .quick-links .button {
+  margin-right: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+.dj-srm-dashboard .quick-links .button-primary {
+  background: #0073aa;
+  color: #fff;
+}
+.dj-srm-dashboard .quick-links .button-primary:hover {
+  background: #006799;
+}
+
+/* ================================
+   Statistiekenkaarten
+   ================================ */
+.dj-srm-dashboard .card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin: 20px 0;
+}
+.dj-srm-dashboard .dj-srm-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  transition: box-shadow 0.2s ease-in-out;
+}
+.dj-srm-dashboard .dj-srm-card:hover {
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+.dj-srm-dashboard .dj-srm-card h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #444;
+}
+.dj-srm-dashboard .dj-srm-card .stat {
+  font-size: 32px;
+  font-weight: bold;
+  margin-top: 10px;
+  color: #0073aa;
+}
+
+/* ================================
+   Tabs (desktop & mobiel)
+   ================================ */
+.dj-srm-dashboard .dj-srm-tabs {
+  display: flex;
+  border-bottom: 2px solid #0073aa;
+  margin: 25px 0 15px;
+}
+.dj-srm-dashboard .dj-srm-tabs button {
+  background: #f1f1f1;
+  border: none;
+  padding: 10px 15px;
+  margin-right: 5px;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  font-weight: bold;
+  color: #444;
+}
+.dj-srm-dashboard .dj-srm-tabs button.active {
+  background: #0073aa;
+  color: #fff;
+}
+.dj-srm-dashboard .dj-srm-tab-content {
+  display: none;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 0 4px 4px 4px;
+}
+.dj-srm-dashboard .dj-srm-tab-content.active {
+  display: block;
+}
+/* Mobiele dropdown */
+.dj-srm-dashboard .dj-srm-tabs-mobile {
+  display: none;
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+@media (max-width: 768px) {
+  .dj-srm-dashboard .dj-srm-tabs { display: none; }
+  .dj-srm-dashboard .dj-srm-tabs-mobile { display: block; }
+}
+
+/* ================================
+   Frontend Offerte weergave
+   ================================ */
+.dj-offer-wrapper {
+  max-width: 900px;
+  margin: 30px auto;
+  padding: 25px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+}
+.dj-offer-wrapper h1 {
+  font-size: 26px;
+  margin-bottom: 15px;
+  color: #0073aa;
+}
+.dj-offer-wrapper h2 {
+  margin-top: 25px;
+  font-size: 20px;
+  border-bottom: 2px solid #0073aa;
+  padding-bottom: 5px;
+  color: #333;
+}
+
+/* Offerte tabel */
+.dj-offer-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+.dj-offer-table th, 
+.dj-offer-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+.dj-offer-table th {
+  background: #f8f9fb;
+  font-weight: bold;
+  color: #444;
+}
+.dj-offer-table td {
+  background: #fff;
+}
+
+/* Totals */
+.dj-offer-totals {
+  margin: 20px 0;
+  padding: 15px;
+  background: #f8f9fb;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.dj-offer-totals p {
+  margin: 5px 0;
+  font-size: 16px;
+}
+.dj-offer-totals strong {
+  font-size: 18px;
+  color: #0073aa;
+}
+
+/* Rider */
+.dj-offer-rider {
+  list-style: disc;
+  padding-left: 20px;
+}
+.dj-offer-rider li {
+  margin-bottom: 8px;
+}
+
+/* Knoppen frontend */
+.dj-offer-actions {
+  margin-top: 20px;
+}
+.dj-offer-actions .button-primary {
+  background: #28a745;
+  border: none;
+  color: #fff;
+  padding: 10px 15px;
+  margin-right: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.dj-offer-actions .button-primary:hover {
+  background: #218838;
+}
+.dj-offer-actions .button {
+  background: #dc3545;
+  border: none;
+  color: #fff;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.dj-offer-actions .button:hover {
+  background: #c82333;
+}.dj-progressbar {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+}
+
+.dj-progressbar .step {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border-bottom: 3px solid #ddd;
+  font-weight: bold;
+  color: #999;
+}
+.dj-progressbar .step.active {
+  border-color: #0073aa;
+  color: #0073aa;
+}
+.dj-progressbar .step span {
+  display: block;
+  font-size: 12px;
+  font-weight: normal;
+  color: #666;
+}
+/* ====== DJ SRM – Offer Single (blokken + mobiel) ====== */
+.dj-offer-single .dj-offer-header{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px;
+}
+.dj-offer-single .dj-offer-header h1{ margin:0; font-size:26px; color:#0073aa; }
+.dj-offer-single .dj-offer-header .meta-id{ font-size:13px; color:#666; }
+.dj-offer-single .header-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.dj-offer-single .admin-actions .button{ margin-left:6px; }
+
+.dj-blocks{ display:grid; gap:16px; margin:16px 0; }
+.dj-blocks.grid-2{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+.dj-blocks.grid-3{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+@media (max-width: 900px){ .dj-blocks.grid-3{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+@media (max-width: 640px){ .dj-blocks.grid-2, .dj-blocks.grid-3{ grid-template-columns:1fr; } }
+
+.dj-card{
+  background:#fff; border:1px solid #ddd; border-radius:8px; padding:16px;
+}
+.dj-card h2{
+  margin:0 0 10px; font-size:20px; border-bottom:2px solid #0073aa; padding-bottom:6px; color:#333;
+}
+
+.dj-kv{ display:grid; grid-template-columns:160px 1fr; column-gap:12px; row-gap:6px; }
+.dj-kv .label{ font-weight:600; color:#666; font-size:12px; text-transform:uppercase; letter-spacing:.02em; }
+@media (max-width:640px){
+  .dj-kv{ grid-template-columns:1fr; }
+  .dj-kv .label{ margin-top:8px; }
+}
+
+/* Totals visueel strak */
+.dj-offer-totals .label{ display:inline-block; min-width:120px; color:#555; }
+.dj-offer-totals .total{ color:#0073aa; font-size:20px; }
+
+/* Tabel -> mobiele cards (data-label op <td>) */
+@media (max-width: 640px){
+  .dj-offer-table, .dj-offer-table thead, .dj-offer-table tbody,
+  .dj-offer-table th, .dj-offer-table td, .dj-offer-table tr{ display:block; }
+  .dj-offer-table thead{ display:none; }
+  .dj-offer-table tr{
+    margin:12px 0; border:1px solid #e6e8eb; border-radius:8px; padding:6px 8px; background:#fff;
+  }
+  .dj-offer-table td{
+    display:flex; justify-content:space-between; align-items:center;
+    border:none; border-bottom:1px dashed #eee; padding:8px 4px;
+  }
+  .dj-offer-table td:last-child{ border-bottom:none; }
+  .dj-offer-table td::before{
+    content: attr(data-label);
+    font-weight:600; color:#2c3e50; margin-right:10px;
+  }
+}
+
+/* Klein detail */
+.dj-offer-actions .inline{ display:inline-block; margin-right:8px; }
+.dj-note.admin-only{ color:#666; font-size:12px; margin-top:6px; }
+
