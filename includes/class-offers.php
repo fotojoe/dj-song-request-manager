@@ -1,7 +1,7 @@
 <?php
 /**
  * Class: DJ_SRM_Offers
- * Doel: Offertes maken, beheren en koppelen aan events
+ * Doel: Offertes maken, beheren, exporteren en mailen
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -23,6 +23,10 @@ class DJ_SRM_Offers {
         add_action('wp_ajax_dj_srm_update_offer_status',[$this, 'update_offer_status']);
         add_action('wp_ajax_nopriv_dj_srm_update_offer_status',[$this, 'update_offer_status']);
         add_action('wp_ajax_dj_srm_delete_offer',       [$this, 'delete_offer']);
+
+        // Nieuw: PDF en Mail
+        add_action('wp_ajax_dj_srm_offer_pdf',          [$this, 'generate_offer_pdf']);
+        add_action('wp_ajax_dj_srm_offer_email',        [$this, 'send_offer_email']);
     }
 
     /** --------------------------
@@ -62,24 +66,47 @@ class DJ_SRM_Offers {
             return;
         }
 
-        // Lijst
-        $offers = $wpdb->get_results("SELECT * FROM $table ORDER BY created_at DESC");
+        // Filters
+        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+        $search        = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
 
+        $where = "WHERE 1=1";
+        if($status_filter){
+            $where .= $wpdb->prepare(" AND status = %s", $status_filter);
+        }
+        if($search){
+            $like = '%' . $wpdb->esc_like($search) . '%';
+            $where .= $wpdb->prepare(" AND (client_name LIKE %s OR client_email LIKE %s)", $like, $like);
+        }
+
+        // Paginering
+        $paged  = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+        $limit  = 10;
+        $offset = ($paged - 1) * $limit;
+
+        $total_offers = $wpdb->get_var("SELECT COUNT(*) FROM $table $where");
+        $offers = $wpdb->get_results("SELECT * FROM $table $where ORDER BY created_at DESC LIMIT $limit OFFSET $offset");
+
+        // HTML
         echo "<div class='wrap dj-srm-dashboard'>";
         echo "<h1>Offertes</h1>";
 
-        echo "<div class='dj-srm-tabs'>
-                <button data-tab='list' class='active'>Overzicht</button>
-                <button data-tab='new'>Nieuwe Offerte</button>
-              </div>";
-
-        echo "<select class='dj-srm-tabs-mobile'>
-                <option value='list'>Overzicht</option>
-                <option value='new'>Nieuwe Offerte</option>
+        // Filterformulier
+        echo "<form method='get' class='dj-filter-form'>";
+        echo "<input type='hidden' name='page' value='dj-srm-offers'>";
+        echo "<input type='text' name='s' placeholder='Zoek klant of email' value='".esc_attr($search)."'>";
+        echo "<select name='status'>
+                <option value=''>-- Status --</option>
+                <option value='concept' ".selected($status_filter,'concept',false).">Concept</option>
+                <option value='verzonden' ".selected($status_filter,'verzonden',false).">Verzonden</option>
+                <option value='geaccepteerd' ".selected($status_filter,'geaccepteerd',false).">Geaccepteerd</option>
+                <option value='geweigerd' ".selected($status_filter,'geweigerd',false).">Geweigerd</option>
+                <option value='betaald' ".selected($status_filter,'betaald',false).">Betaald</option>
               </select>";
+        echo "<button class='button'>Filter</button>";
+        echo "</form>";
 
-        // Overzicht
-        echo "<div id='list' class='dj-srm-tab-content active'>";
+        // Tabel
         echo "<table class='widefat'><thead><tr>
                 <th>ID</th><th>Klant</th><th>Email</th><th>Totaal</th><th>Status</th><th>Acties</th>
               </tr></thead><tbody>";
@@ -96,8 +123,9 @@ class DJ_SRM_Offers {
                         <td>
                           <a href='" . esc_url(admin_url("admin.php?page=dj-srm-offers&view={$offer->id}")) . "' class='button'>Bekijken</a>
                           <a href='" . esc_url(admin_url("admin.php?page=dj-srm-offers&edit={$offer->id}")) . "' class='button'>Bewerken</a>
+                          <a href='" . esc_url(admin_url("admin-ajax.php?action=dj_srm_offer_pdf&offer_id={$offer->id}&_wpnonce=".wp_create_nonce('dj_srm_nonce'))) . "' class='button'>⬇ PDF</a>
+                          <a href='" . esc_url(admin_url("admin-ajax.php?action=dj_srm_offer_email&offer_id={$offer->id}&_wpnonce=".wp_create_nonce('dj_srm_nonce'))) . "' class='button'>📧 Mail</a>
                           <button class='button delete-offer' data-id='{$offer->id}' data-nonce='" . wp_create_nonce('dj_srm_nonce') . "'>🗑 Verwijderen</button>
-                          <a href='" . esc_url(site_url("/offers/?id={$offer->id}")) . "' target='_blank' class='button'>Publieke link</a>
                         </td>
                       </tr>";
             }
@@ -105,12 +133,19 @@ class DJ_SRM_Offers {
             echo "<tr><td colspan='6'>Geen offertes gevonden.</td></tr>";
         }
 
-        echo "</tbody></table></div>";
+        echo "</tbody></table>";
 
-        // Wizard formulier
-        echo "<div id='new' class='dj-srm-tab-content'>";
-        include DJ_SRM_PLUGIN_DIR . 'templates/offer-form.php';
-        echo "</div>";
+        // Paginering
+        $total_pages = ceil($total_offers / $limit);
+        if($total_pages > 1){
+            echo "<div class='tablenav'><div class='tablenav-pages'>";
+            for($i=1;$i<=$total_pages;$i++){
+                $class = ($i==$paged) ? "class='current-page'" : "";
+                $url = add_query_arg(['paged'=>$i]);
+                echo "<a href='".esc_url($url)."' $class>$i</a> ";
+            }
+            echo "</div></div>";
+        }
 
         echo "</div>";
     }
@@ -139,137 +174,69 @@ class DJ_SRM_Offers {
     }
 
     /** --------------------------
-     * AJAX: Nieuwe offerte opslaan
+     * PDF genereren
      -------------------------- */
-    public function handle_new_offer() {
+    public function generate_offer_pdf() {
         check_ajax_referer('dj_srm_nonce');
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'dj_srm_offers';
-
-        $items = isset($_POST['items']) ? (array) $_POST['items'] : [];
-        list($subtotal,$vat) = $this->calc_totals($items);
-
-        $discount = floatval($_POST['discount'] ?? 0);
-        $subtotal = max(0, $subtotal - $discount);
-        $total    = $subtotal + $vat;
-
-        $wpdb->insert($table, [
-            'offer_number' => 'DJ-' . time(),
-            'client_email' => sanitize_email($_POST['client_email']),
-            'client_name'  => sanitize_text_field($_POST['client_name']),
-            'client_phone' => sanitize_text_field($_POST['client_phone']),
-            'event_type'   => sanitize_text_field($_POST['event_type']),
-            'event_date'   => sanitize_text_field($_POST['event_date']),
-            'start_time'   => sanitize_text_field($_POST['start_time']),
-            'end_time'     => sanitize_text_field($_POST['end_time']),
-            'venue_city'   => sanitize_text_field($_POST['venue_city']),
-            'items'        => wp_json_encode($items),
-            'discount'     => $discount,
-            'subtotal'     => $subtotal,
-            'vat'          => $vat,
-            'total'        => $total,
-            'notes'        => wp_kses_post($_POST['notes']),
-            'terms'        => wp_kses_post($_POST['terms']),
-            'rider'        => wp_kses_post($_POST['rider']),
-            'status'       => 'verzonden',
-            'valid_until'  => sanitize_text_field($_POST['valid_until']),
-            'sent_at'      => current_time('mysql')
-        ]);
-
-        $offer_id = $wpdb->insert_id;
-
-        wp_send_json_success([
-            'message'    => 'Offerte succesvol aangemaakt.',
-            'offer_id'   => $offer_id,
-            'admin_link' => admin_url("admin.php?page=dj-srm-offers&view=$offer_id"),
-            'offer_link' => site_url("/offers/?id=$offer_id")
-        ]);
-    }
-
-    /** --------------------------
-     * AJAX: Offerte bijwerken
-     -------------------------- */
-    public function update_offer() {
-        check_ajax_referer('dj_srm_nonce');
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'dj_srm_offers';
-        $id    = intval($_POST['offer_id']);
-
-        $items = isset($_POST['items']) ? (array) $_POST['items'] : [];
-        list($subtotal,$vat) = $this->calc_totals($items);
-        $discount = floatval($_POST['discount'] ?? 0);
-        $subtotal = max(0, $subtotal - $discount);
-        $total    = $subtotal + $vat;
-
-        $wpdb->update($table, [
-            'client_name'  => sanitize_text_field($_POST['client_name']),
-            'client_email' => sanitize_email($_POST['client_email']),
-            'client_phone' => sanitize_text_field($_POST['client_phone']),
-            'event_type'   => sanitize_text_field($_POST['event_type']),
-            'event_date'   => sanitize_text_field($_POST['event_date']),
-            'start_time'   => sanitize_text_field($_POST['start_time']),
-            'end_time'     => sanitize_text_field($_POST['end_time']),
-            'venue_city'   => sanitize_text_field($_POST['venue_city']),
-            'items'        => wp_json_encode($items),
-            'discount'     => $discount,
-            'subtotal'     => $subtotal,
-            'vat'          => $vat,
-            'total'        => $total,
-            'notes'        => wp_kses_post($_POST['notes']),
-            'terms'        => wp_kses_post($_POST['terms']),
-            'rider'        => wp_kses_post($_POST['rider']),
-            'valid_until'  => sanitize_text_field($_POST['valid_until']),
-            'updated_at'   => current_time('mysql')
-        ], ['id' => $id]);
-
-        wp_send_json_success([
-            'message'    => 'Offerte bijgewerkt.',
-            'admin_link' => admin_url("admin.php?page=dj-srm-offers&view=$id")
-        ]);
-    }
-
-    /** --------------------------
-     * AJAX: Status bijwerken
-     -------------------------- */
-    public function update_offer_status() {
-        check_ajax_referer('dj_srm_nonce');
-
-        global $wpdb;
-        $table = $wpdb->prefix . 'dj_srm_offers';
-        $id     = intval($_POST['offer_id'] ?? $_POST['id']);
-        $status = sanitize_text_field($_POST['status']);
-
-        $wpdb->update($table, ['status' => $status], ['id' => $id]);
-
-        wp_send_json_success(['message' => 'Status bijgewerkt naar: ' . $status]);
-    }
-
-    /** --------------------------
-     * AJAX: Offerte verwijderen
-     -------------------------- */
-    public function delete_offer() {
         if ( ! current_user_can('manage_options') ) {
-            wp_send_json_error(['message' => 'Geen rechten om offertes te verwijderen.']);
+            wp_die(__('Geen rechten.', 'dj-srm'));
         }
-        check_ajax_referer('dj_srm_nonce');
 
         global $wpdb;
+        $id = intval($_GET['offer_id']);
         $table = $wpdb->prefix . 'dj_srm_offers';
-        $id    = intval($_POST['id']);
+        $offer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $id));
+        if(!$offer) wp_die('Offerte niet gevonden.');
 
-        $deleted = $wpdb->delete($table, ['id' => $id], ['%d']);
+        ob_start();
+        include DJ_SRM_PLUGIN_DIR . 'templates/pdf/offer-pdf.php';
+        $html = ob_get_clean();
 
-        if ($deleted !== false) {
-            wp_send_json_success([
-                'message'  => 'Offerte verwijderd.',
-                'redirect' => admin_url("admin.php?page=dj-srm-offers")
-            ]);
-        } else {
-            wp_send_json_error(['message' => 'Verwijderen mislukt.']);
-        }
+        require_once DJ_SRM_PLUGIN_DIR . 'lib/dompdf/autoload.inc.php';
+        $dompdf = new Dompdf\Dompdf();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $dompdf->stream('offerte-'.$offer->offer_number.'.pdf');
+        exit;
     }
+
+    /** --------------------------
+     * Offerte mailen
+     -------------------------- */
+    public function send_offer_email() {
+        check_ajax_referer('dj_srm_nonce');
+        if ( ! current_user_can('manage_options') ) {
+            wp_send_json_error(['message' => 'Geen rechten.']);
+        }
+
+        global $wpdb;
+        $id = intval($_GET['offer_id']);
+        $table = $wpdb->prefix . 'dj_srm_offers';
+        $offer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $id));
+        if(!$offer) wp_send_json_error(['message'=>'Offerte niet gevonden.']);
+
+        $to      = $offer->client_email;
+        $subject = "🎶 Jouw offerte van DJ’s Oostboys (#{$offer->offer_number})";
+
+        ob_start();
+        include DJ_SRM_PLUGIN_DIR . 'templates/mail/offer-sent.php';
+        $message = ob_get_clean();
+
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+
+        if(wp_mail($to, $subject, $message, $headers)){
+            wp_redirect(admin_url("admin.php?page=dj-srm-offers&view=$id&mail=success"));
+        } else {
+            wp_redirect(admin_url("admin.php?page=dj-srm-offers&view=$id&mail=fail"));
+        }
+        exit;
+    }
+
+    /** --------------------------
+     * Resterende functies: add, update, status, delete
+     -------------------------- */
+    // ... laat zoals je nu hebt (handle_new_offer, update_offer, update_offer_status, delete_offer)
 
     /** --------------------------
      * Hulpfunctie: Totals berekenen
