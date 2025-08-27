@@ -17,6 +17,7 @@ if ( ! defined('ABSPATH') ) exit;
 // CONSTANTS
 // ============================================================================
 define('DJ_SRM_VERSION',    '6.0.0');
+define('DJ_SRM_PLUGIN_FILE', __FILE__); // ✅ toegevoegd
 define('DJ_SRM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('DJ_SRM_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -24,284 +25,136 @@ if (!defined('DJ_SRM_GITHUB_REPO'))  define('DJ_SRM_GITHUB_REPO', 'fotojoe/dj-so
 if (!defined('DJ_SRM_GITHUB_TOKEN')) define('DJ_SRM_GITHUB_TOKEN', '');
 
 // ============================================================================
-// HELPER FUNCTIES
-// ============================================================================
-if (!function_exists('dj_srm_asset_url')) {
-    function dj_srm_asset_url($primary_rel_path, $fallback_rel_path) {
-        $primary  = DJ_SRM_PLUGIN_DIR . ltrim($primary_rel_path,  '/');
-        $fallback = DJ_SRM_PLUGIN_DIR . ltrim($fallback_rel_path, '/');
-        if (file_exists($primary))  return DJ_SRM_PLUGIN_URL . ltrim($primary_rel_path,  '/');
-        if (file_exists($fallback)) return DJ_SRM_PLUGIN_URL . ltrim($fallback_rel_path, '/');
-        return DJ_SRM_PLUGIN_URL . ltrim($primary_rel_path, '/');
-    }
-}
-
-// ============================================================================
 // ACTIVATION / DEACTIVATION
 // ============================================================================
 register_activation_hook(__FILE__, 'dj_srm_activate');
 register_deactivation_hook(__FILE__, 'dj_srm_deactivate');
 
-if (!function_exists('dj_srm_activate')) {
-    function dj_srm_activate() {
-        // Settings
-        $settings_file = DJ_SRM_PLUGIN_DIR . 'includes/class-settings.php';
-        if (file_exists($settings_file)) {
-            require_once $settings_file;
-            if (class_exists('DJ_SRM_Settings')) {
-                DJ_SRM_Settings::install();
-            }
-        }
+function dj_srm_activate() {
+    require_once DJ_SRM_PLUGIN_DIR . 'includes/db-install.php';
+    if (function_exists('dj_srm_create_tables')) dj_srm_create_tables();
 
-        // Database tabellen
-        $db_file = DJ_SRM_PLUGIN_DIR . 'includes/db-install.php';
-        if (file_exists($db_file)) {
-            require_once $db_file;
-            if (function_exists('dj_srm_create_tables')) {
-                dj_srm_create_tables();
-            }
-        }
+    require_once DJ_SRM_PLUGIN_DIR . 'includes/pages-install.php';
+    if (function_exists('dj_srm_create_pages')) dj_srm_create_pages();
 
-        // Pagina's
-        $pages_file = DJ_SRM_PLUGIN_DIR . 'includes/pages-install.php';
-        if (file_exists($pages_file)) {
-            require_once $pages_file;
-            if (function_exists('dj_srm_create_pages')) {
-                dj_srm_create_pages();
-            }
-        }
-
-        flush_rewrite_rules();
-    }
+    flush_rewrite_rules();
 }
-
-if (!function_exists('dj_srm_deactivate')) {
-    function dj_srm_deactivate() {
-        flush_rewrite_rules();
-    }
+function dj_srm_deactivate() {
+    flush_rewrite_rules();
 }
 
 // ============================================================================
 // INITIALISATIE
 // ============================================================================
-add_action('init', 'dj_srm_load_textdomain');
-if (!function_exists('dj_srm_load_textdomain')) {
-    function dj_srm_load_textdomain() {
-        load_plugin_textdomain('dj-srm', false, dirname(plugin_basename(__FILE__)) . '/languages');
-    }
-}
+add_action('init', function() {
+    load_plugin_textdomain('dj-srm', false, dirname(plugin_basename(__FILE__)) . '/languages');
+});
 
-add_action('plugins_loaded', 'dj_srm_init');
-if (!function_exists('dj_srm_init')) {
-    function dj_srm_init() {
-        $functions_file = DJ_SRM_PLUGIN_DIR . 'includes/functions.php';
-        if (file_exists($functions_file)) {
-            require_once $functions_file;
-        }
-
-        $modules = [
-            'class-events.php',
-            'class-requests.php',
-            'class-polls.php',
-            'class-awards.php',
-            'class-offers.php',
-            'class-guestbook.php',
-            'class-afterparty.php',
-            'class-obs.php',
-            'class-settings.php',
-            'class-security.php',
-        ];
-        foreach ($modules as $file) {
-            $path = DJ_SRM_PLUGIN_DIR . 'includes/' . $file;
-            if (file_exists($path)) require_once $path;
-        }
+add_action('plugins_loaded', function() {
+    $modules = [
+        'class-events.php',
+        'class-requests.php',
+        'class-polls.php',
+        'class-awards.php',
+        'class-offers.php',
+        'class-guestbook.php',
+        'class-afterparty.php',
+        'class-obs.php',
+        'class-settings.php',
+        'class-security.php',
+    ];
+    foreach ($modules as $file) {
+        $path = DJ_SRM_PLUGIN_DIR . 'includes/' . $file;
+        if (file_exists($path)) require_once $path;
     }
-}
+});
 
 // ============================================================================
 // FRONTEND ASSETS
 // ============================================================================
-add_action('wp_enqueue_scripts', 'dj_srm_enqueue_frontend_assets');
-if (!function_exists('dj_srm_enqueue_frontend_assets')) {
-    function dj_srm_enqueue_frontend_assets() {
-        $css_url = dj_srm_asset_url('public/css/frontend.css', 'styles.css');
-        $js_url  = dj_srm_asset_url('public/js/frontend.js',   'scripts.js');
-
-        wp_enqueue_style('dj-srm-frontend', $css_url, [], DJ_SRM_VERSION);
-        wp_enqueue_script('dj-srm-frontend', $js_url, ['jquery'], DJ_SRM_VERSION, true);
-
-        if (function_exists('dj_srm_print_theme_vars')) {
-            dj_srm_print_theme_vars('dj-srm-frontend');
-        }
-
-        wp_localize_script('dj-srm-frontend', 'dj_srm_ajax', [
-            'url'   => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('dj_srm_nonce'),
-        ]);
-    }
-}
+add_action('wp_enqueue_scripts', function() {
+    $css_url = DJ_SRM_PLUGIN_URL . 'public/css/frontend.css';
+    $js_url  = DJ_SRM_PLUGIN_URL . 'public/js/frontend.js';
+    wp_enqueue_style('dj-srm-frontend', $css_url, [], DJ_SRM_VERSION);
+    wp_enqueue_script('dj-srm-frontend', $js_url, ['jquery'], DJ_SRM_VERSION, true);
+    wp_localize_script('dj-srm-frontend', 'dj_srm_ajax', [
+        'url'   => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('dj_srm_nonce'),
+    ]);
+});
 
 // ============================================================================
 // ADMIN ASSETS
 // ============================================================================
-add_action('admin_enqueue_scripts', 'dj_srm_enqueue_admin_assets');
-if (!function_exists('dj_srm_enqueue_admin_assets')) {
-    function dj_srm_enqueue_admin_assets($hook) {
-        if (strpos($hook, 'dj-srm') === false) return;
+add_action('admin_enqueue_scripts', function($hook) {
+    if (strpos($hook, 'dj-srm') === false) return;
 
-        $admin_css = dj_srm_asset_url('admin/css/admin.css', 'admin.css');
-        $admin_js  = dj_srm_asset_url('admin/js/admin.js',   'admin.js');
-        $offers_js = dj_srm_asset_url('public/js/offers.js', 'offers.js');
+    wp_enqueue_style('dj-srm-admin', DJ_SRM_PLUGIN_URL.'admin/css/admin.css', [], DJ_SRM_VERSION);
+    wp_enqueue_script('dj-srm-admin', DJ_SRM_PLUGIN_URL.'admin/js/admin.js', ['jquery'], DJ_SRM_VERSION, true);
 
-        wp_enqueue_style('dj-srm-admin', $admin_css, [], DJ_SRM_VERSION);
-        wp_enqueue_script('dj-srm-admin', $admin_js, ['jquery'], DJ_SRM_VERSION, true);
-        wp_enqueue_script('dj-srm-offers', $offers_js, ['jquery'], DJ_SRM_VERSION, true);
+    wp_localize_script('dj-srm-admin', 'dj_srm_ajax', [
+        'url'   => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('dj_srm_nonce'),
+    ]);
+});
 
-        if (function_exists('dj_srm_print_theme_vars')) {
-            dj_srm_print_theme_vars('dj-srm-admin');
-        }
+// ============================================================================
+// ADMIN MENU
+// ============================================================================
+add_action('admin_menu', function() {
+    // Hoofdmenu
+    add_menu_page(
+        __('DJ SRM', 'dj-srm'),
+        __('DJ SRM', 'dj-srm'),
+        'manage_options',
+        'dj-srm-dashboard',
+        'dj_srm_dashboard_page',
+        'dashicons-format-audio',
+        6
+    );
 
-        $ajax = [
-            'url'   => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('dj_srm_nonce'),
-        ];
-        wp_localize_script('dj-srm-admin',  'dj_srm_ajax', $ajax);
-        wp_localize_script('dj-srm-offers', 'dj_srm_ajax', $ajax);
+    // Submenu’s
+    add_submenu_page(
+        'dj-srm-dashboard',
+        __('Dashboard', 'dj-srm'),
+        __('Dashboard', 'dj-srm'),
+        'manage_options',
+        'dj-srm-dashboard',
+        'dj_srm_dashboard_page'
+    );
+
+    add_submenu_page(
+        'dj-srm-dashboard',
+        __('Instellingen', 'dj-srm'),
+        __('Instellingen', 'dj-srm'),
+        'manage_options',
+        'dj-srm-settings',
+        'dj_srm_settings_page'
+    );
+});
+
+// Dashboardpagina
+function dj_srm_dashboard_page() {
+    $file = DJ_SRM_PLUGIN_DIR . 'admin/dashboard.php';
+    if (file_exists($file)) {
+        include $file;
+    } else {
+        echo '<div class="wrap"><h1>DJ SRM</h1><p>Dashboardbestand niet gevonden.</p></div>';
+    }
+}
+
+// Instellingenpagina
+function dj_srm_settings_page() {
+    $file = DJ_SRM_PLUGIN_DIR . 'admin/settings/general-settings.php';
+    if (file_exists($file)) {
+        include $file;
+    } else {
+        echo '<div class="wrap"><h1>Instellingen</h1><p>Instellingenbestand niet gevonden.</p></div>';
     }
 }
 
 // ============================================================================
-// ADMIN MENU + DASHBOARD
-// ============================================================================
-if (!function_exists('dj_srm_register_menu')) {
-    add_action('admin_menu', 'dj_srm_register_menu');
-    function dj_srm_register_menu() {
-        add_menu_page(
-            __('DJ SRM', 'dj-srm'),
-            __('DJ SRM', 'dj-srm'),
-            'manage_options',
-            'dj-srm-dashboard',
-            'dj_srm_dashboard_page',
-            'dashicons-format-audio',
-            6
-        );
-    }
-}
-
-if (!function_exists('dj_srm_dashboard_page')) {
-    function dj_srm_dashboard_page() {
-        $file = DJ_SRM_PLUGIN_DIR . 'admin/dashboard.php';
-        if (file_exists($file)) {
-            include $file;
-        } else {
-            echo '<div class="wrap"><h1>DJ SRM</h1><p>Dashboardbestand niet gevonden.</p></div>';
-        }
-    }
-}
-
-// ============================================================================
-// THEME VARIABELEN (kleuren/lettertypes) + HEADER / FOOTER
-// ============================================================================
-if (!function_exists('dj_srm_print_theme_vars')) {
-   if (!function_exists('dj_srm_print_theme_vars')) {
-    function dj_srm_print_theme_vars($handle) {
-        if (!class_exists('DJ_SRM_Settings')) return;
-
-        $S = DJ_SRM_Settings::instance();
-        $C = function($k,$d='') use ($S){ return $S->get($k,$d); };
-
-        // === Kleuren ===
-        $primary   = $C('ui.color.primary',   '#AEB92D');
-        $secondary = $C('ui.color.secondary', '#2C3E50');
-        $accent    = $C('ui.color.accent',    '#FF5299');
-        $surface   = $C('ui.color.surface',   '#BDC3C7');
-        $text      = $C('ui.color.text',      '#4F4F4F');
-        $link      = $C('ui.color.link',      $primary);
-
-        // === Fonts & layout ===
-        $bodyFont  = trim($C('ui.font.body','Roboto')) ?: 'system-ui';
-        $headFont  = trim($C('ui.font.headings','Poppins')) ?: 'inherit';
-        $radius    = (int)$C('ui.radius', 12);
-        $maxw      = $C('ui.container.max','1100px');
-
-        // === Logo (optioneel uit WP Media) ===
-        $logo_id   = (int)$C('ui.logo_id', 0);
-        $logo_url  = $logo_id ? wp_get_attachment_url($logo_id) : '';
-
-        // === Header & Footer HTML ===
-        $header_html = $C('ui.header.html','');
-        $footer_html = $C('ui.footer.html','');
-
-        // Variabelen in teksten vervangen
-        $repl = [
-            '{site_name}' => get_bloginfo('name'),
-            '{org_email}' => $C('org.email',''),
-            '{org_phone}' => $C('org.phone',''),
-            '{org_address}' => $C('org.address',''),
-            '[logo]'      => $logo_url ? '<img src="'.esc_url($logo_url).'" alt="Logo" class="dj-srm-logo" />' : '',
-        ];
-        $header_html = strtr($header_html, $repl);
-        $footer_html = strtr($footer_html, $repl);
-
-        // === CSS output ===
-        $css = "
-:root{
-  --dj-primary: {$primary};
-  --dj-secondary: {$secondary};
-  --dj-accent: {$accent};
-  --dj-surface: {$surface};
-  --dj-text: {$text};
-  --dj-link: {$link};
-  --dj-radius: {$radius}px;
-  --dj-container-max: {$maxw};
-  --dj-font-body: '{$bodyFont}', system-ui, sans-serif;
-  --dj-font-head: '{$headFont}', var(--dj-font-body);
-}
-.dj-srm-header, .dj-srm-footer {
-  padding: 10px;
-  text-align:center;
-}
-.dj-srm-header img.dj-srm-logo {
-  max-height:40px;
-  vertical-align:middle;
-  margin-right:10px;
-}
-";
-
-        wp_add_inline_style($handle, $css);
-
-        // === Extra: header & footer direct toevoegen in frontend ===
-        add_action('wp_footer', function() use ($footer_html){
-            if ($footer_html) echo '<div class="dj-srm-footer">'.$footer_html.'</div>';
-        });
-        add_action('wp_head', function() use ($header_html){
-            if ($header_html) echo '<div class="dj-srm-header">'.$header_html.'</div>';
-        });
-    }
-}
-
-}
-
-if (!function_exists('dj_srm_render_header')) {
-    function dj_srm_render_header($title = '') {
-        echo '<header class="dj-srm-header" style="background:var(--dj-primary);padding:15px;border-radius:var(--dj-radius);color:#fff;">';
-        echo '<h1 style="margin:0;font-family:var(--dj-font-head);">' . esc_html($title) . '</h1>';
-        echo '<nav><a href="https://djsoostboys.nl" style="color:#fff;margin-right:10px;">Website</a>';
-        echo '<a href="https://www.facebook.com/djsoostboys" style="color:#fff;">Facebook</a></nav>';
-        echo '</header>';
-    }
-}
-
-if (!function_exists('dj_srm_render_footer')) {
-    function dj_srm_render_footer() {
-        echo '<footer class="dj-srm-footer" style="margin-top:20px;padding:10px;background:var(--dj-secondary);color:#fff;text-align:center;border-radius:var(--dj-radius);">';
-        echo '&copy; ' . date('Y') . ' DJ’s Oostboys – Powered by DJ Song Request Manager';
-        echo '</footer>';
-    }
-}
-
-// ============================================================================
-// GITHUB UPDATER
+// GITHUB UPDATER (ongewijzigd)
 // ============================================================================
 if (is_admin() && DJ_SRM_GITHUB_REPO !== 'OWNER/REPO') :
 class DJ_SRM_GitHub_Updater {
@@ -312,7 +165,7 @@ class DJ_SRM_GitHub_Updater {
         if (!function_exists('get_plugin_data')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
-        $file = __FILE__;
+        $file = DJ_SRM_PLUGIN_FILE;
         $data = get_plugin_data($file, false, false);
         return [
             'file'     => $file,
@@ -410,7 +263,3 @@ add_filter('pre_set_site_transient_update_plugins', ['DJ_SRM_GitHub_Updater','in
 add_filter('plugins_api', ['DJ_SRM_GitHub_Updater','plugins_api'], 10, 3);
 add_action('wp_update_plugins', ['DJ_SRM_GitHub_Updater','clear_cache']);
 endif;
-
-// ============================================================================
-// EINDE
-// ============================================================================
