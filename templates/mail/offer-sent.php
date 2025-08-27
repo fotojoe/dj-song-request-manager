@@ -6,7 +6,7 @@
  * Variabelen:
  * $offer = offerte object (uit DB)
  */
-$offer_link = site_url("/offers/"); // algemene loginpagina
+$offer_link = site_url("/offers/"); // loginpagina
 ?>
 <!DOCTYPE html>
 <html lang="nl">
@@ -19,7 +19,7 @@ $offer_link = site_url("/offers/"); // algemene loginpagina
 
     <!-- Header -->
     <div style="background:#A3E4D7; text-align:center; padding:20px;">
-      <img src="<?php echo plugins_url('public/img/oostboys-logo.png', DJ_SRM_PLUGIN_FILE); ?>" alt="DJ’s Oostboys" style="max-height:80px;">
+      <img src="https://djsoostboys.nl/wp-content/uploads/2024/10/oostboys-logo.png" alt="DJ’s Oostboys" style="max-height:80px;">
       <h1 style="margin:10px 0; color:#2C3E50;">🎉 Jouw Offerte staat klaar!</h1>
     </div>
 
@@ -27,21 +27,20 @@ $offer_link = site_url("/offers/"); // algemene loginpagina
     <div style="padding:20px;">
       <p>Hoi <strong><?php echo esc_html($offer->client_name); ?></strong>,</p>
 
-      <p>We hebben je persoonlijke <strong>Oostboys Party-offerte</strong> klaargezet!  
-         Tijd om je feestplannen werkelijkheid te maken 🥳.</p>
+      <p>We hebben jouw persoonlijke <strong>DJ’s Oostboys Party-offerte</strong> klaargezet! 🥳</p>
 
-      <h2 style="color:#AEB92D;">📧 Zo log je in</h2>
+      <h2 style="color:#AEB92D;">🔑 Jouw login</h2>
       <p>
-        Gebruik je <strong>e-mailadres</strong>: <em><?php echo esc_html($offer->client_email); ?></em><br>
-        En je persoonlijke <strong>PIN-code</strong>: <em><?php echo esc_html($offer->pincode); ?></em>
+        <strong>E-mailadres:</strong> <?php echo esc_html($offer->client_email); ?><br>
+        <strong>Pincode:</strong> <?php echo esc_html($offer->pincode); ?>
       </p>
 
-      <p>Met deze combinatie kun je inloggen op onze offertepagina en jouw feestdeal bekijken.</p>
+      <p>Gebruik deze gegevens om in te loggen op onze offertepagina.</p>
 
       <!-- Knop -->
       <p style="text-align:center; margin:30px 0;">
         <a href="<?php echo esc_url($offer_link); ?>" style="background:#FF5299; color:#fff; padding:15px 25px; text-decoration:none; border-radius:30px; font-size:18px;">
-          👉 Ga naar mijn Offerte
+          👉 Naar mijn Offerte
         </a>
       </p>
 
@@ -50,7 +49,7 @@ $offer_link = site_url("/offers/"); // algemene loginpagina
         <strong>Type:</strong> <?php echo esc_html($offer->event_type); ?><br>
         <strong>Datum:</strong> <?php echo esc_html($offer->event_date); ?><br>
         <strong>Locatie:</strong> <?php echo esc_html($offer->venue_city); ?><br>
-        <strong>Aantal gasten:</strong> <?php echo esc_html($offer->guest_count); ?>
+        <strong>Gasten:</strong> <?php echo esc_html($offer->guest_count); ?>
       </p>
 
       <h2 style="color:#AEB92D;">💰 Samenvatting</h2>
@@ -59,7 +58,7 @@ $offer_link = site_url("/offers/"); // algemene loginpagina
         <em>Geldig tot: <?php echo esc_html($offer->valid_until); ?></em>
       </p>
 
-      <p>Met je login kun je de volledige offerte bekijken én meteen aangeven of je <strong>JA zegt tegen een knalfeest met DJ’s Oostboys 🎶</strong> of niet.</p>
+      <p>Met je login kun je de volledige offerte bekijken en meteen aangeven of je <strong>JA zegt tegen een knalfeest met DJ’s Oostboys 🎶</strong>.</p>
 
       <p>Groetjes,<br><strong>DJ Dirk & DJ Pim</strong><br>DJ’s Oostboys</p>
     </div>
