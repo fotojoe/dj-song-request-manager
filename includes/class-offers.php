@@ -12,10 +12,10 @@ class DJ_SRM_Offers {
         // Admin menu
         add_action('admin_menu', [$this, 'register_admin_menu']);
 
-        // Shortcodes
-        add_shortcode('dj_offers',        [$this, 'render_offers']);
-        add_shortcode('dj_offer',         [$this, 'render_offer_single']);
-        add_shortcode('dj_offer_login',   [$this, 'render_offer_login']);
+        // Shortcodes (frontend klant)
+        add_shortcode('dj_offers',        [$this, 'render_offers']);       // overzicht klant
+        add_shortcode('dj_offer',         [$this, 'render_offer_single']); // detail klant
+        add_shortcode('dj_offer_login',   [$this, 'render_offer_login']);  // login klant
 
         // AJAX handlers
         add_action('wp_ajax_dj_srm_add_offer',          [$this, 'handle_new_offer']);
@@ -50,26 +50,39 @@ class DJ_SRM_Offers {
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
 
-        // Bekijken
-        if ( isset($_GET['view']) ) {
+        // === Tabs ===
+        $tab = $_GET['tab'] ?? 'list';
+        echo "<div class='wrap dj-srm-dashboard'>";
+        echo "<h1 class='wp-heading-inline'>Offertes</h1>";
+        echo "<nav class='nav-tab-wrapper'>
+                <a href='?page=dj-srm-offers&tab=list' class='nav-tab ".($tab=='list'?'nav-tab-active':'')."'>Overzicht</a>
+                <a href='?page=dj-srm-offers&tab=new' class='nav-tab ".($tab=='new'?'nav-tab-active':'')."'>Nieuwe Offerte</a>
+              </nav>";
+
+        // === Tabs logica ===
+        if ($tab == 'new') {
+            include DJ_SRM_PLUGIN_DIR . 'templates/offer-form.php';
+            echo "</div>";
+            return;
+        }
+        if (isset($_GET['view'])) {
             $offer_id = intval($_GET['view']);
             $offer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $offer_id));
             include DJ_SRM_PLUGIN_DIR . 'templates/offer-single.php';
+            echo "</div>";
             return;
         }
-
-        // Bewerken
-        if ( isset($_GET['edit']) ) {
+        if (isset($_GET['edit'])) {
             $offer_id = intval($_GET['edit']);
             $offer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $offer_id));
             include DJ_SRM_PLUGIN_DIR . 'templates/offer-edit.php';
+            echo "</div>";
             return;
         }
 
-        // Filters
+        // === Filters & Zoeken ===
         $status_filter = $_GET['status'] ?? '';
         $search        = $_GET['s'] ?? '';
-
         $where = "WHERE 1=1";
         if($status_filter){
             $where .= $wpdb->prepare(" AND status = %s", $status_filter);
@@ -79,7 +92,7 @@ class DJ_SRM_Offers {
             $where .= $wpdb->prepare(" AND (client_name LIKE %s OR client_email LIKE %s)", $like, $like);
         }
 
-        // Paginering
+        // === Paginering ===
         $paged  = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
         $limit  = 10;
         $offset = ($paged - 1) * $limit;
@@ -87,27 +100,10 @@ class DJ_SRM_Offers {
         $total_offers = $wpdb->get_var("SELECT COUNT(*) FROM $table $where");
         $offers = $wpdb->get_results("SELECT * FROM $table $where ORDER BY created_at DESC LIMIT $limit OFFSET $offset");
 
-        // Tabs
-        echo "<div class='wrap dj-srm-dashboard'>";
-        echo "<h1 class='wp-heading-inline'>Offertes</h1>";
-
-        echo "<nav class='nav-tab-wrapper'>
-                <a href='?page=dj-srm-offers' class='nav-tab ".(!isset($_GET['tab']) || $_GET['tab']=='list' ? 'nav-tab-active':'')."'>Overzicht</a>
-                <a href='?page=dj-srm-offers&tab=new' class='nav-tab ".(isset($_GET['tab']) && $_GET['tab']=='new' ? 'nav-tab-active':'')."'>Nieuwe Offerte</a>
-              </nav>";
-
-        $tab = $_GET['tab'] ?? 'list';
-
-        if($tab == 'new'){
-            include DJ_SRM_PLUGIN_DIR . 'templates/offer-form.php';
-            echo "</div>";
-            return;
-        }
-
-        // Filterformulier
-        echo "<form method='get' class='dj-filter-form' style='margin:15px 0; display:flex; gap:10px; flex-wrap:wrap;'>";
+        // === Filter formulier ===
+        echo "<form method='get' style='margin:15px 0; display:flex; flex-wrap:wrap; gap:10px; align-items:center;'>";
         echo "<input type='hidden' name='page' value='dj-srm-offers'>";
-        echo "<input type='text' name='s' placeholder='Zoek klant of email' value='".esc_attr($search)."' class='regular-text'>";
+        echo "<input type='text' name='s' placeholder='Zoek klant of email' value='".esc_attr($search)."'>";
         echo "<select name='status'>
                 <option value=''>-- Status --</option>
                 <option ".selected($status_filter,'concept',false)." value='concept'>Concept</option>
@@ -119,42 +115,40 @@ class DJ_SRM_Offers {
         submit_button('Filter', '', '', false);
         echo "</form>";
 
-        // Responsive tabel
+        // === Tabel Offertes ===
         echo "<div style='overflow-x:auto'>";
-        echo "<table class='widefat striped'><thead><tr>
-                <th>ID</th>
-                <th>Klant</th>
-                <th>Email</th>
-                <th>Totaal</th>
-                <th>Status</th>
-                <th>Acties</th>
-              </tr></thead><tbody>";
-
+        echo "<table class='widefat striped'>
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Klant</th><th>Email</th><th>Totaal</th><th>Status</th><th>Acties</th>
+                  </tr>
+                </thead>
+                <tbody>";
         if ($offers) {
             foreach ($offers as $offer) {
                 $total = number_format((float)$offer->total, 2, ",", ".");
                 echo "<tr>
                         <td>{$offer->id}</td>
-                        <td>" . esc_html($offer->client_name) . "</td>
-                        <td>" . esc_html($offer->client_email) . "</td>
+                        <td>".esc_html($offer->client_name)."</td>
+                        <td>".esc_html($offer->client_email)."</td>
                         <td>€ {$total}</td>
-                        <td>" . esc_html($offer->status) . "</td>
+                        <td>".esc_html($offer->status)."</td>
                         <td style='display:flex; gap:5px; flex-wrap:wrap;'>
-                          <a href='" . esc_url(admin_url("admin.php?page=dj-srm-offers&view={$offer->id}")) . "' class='button button-small'>Bekijken</a>
-                          <a href='" . esc_url(admin_url("admin.php?page=dj-srm-offers&edit={$offer->id}")) . "' class='button button-small'>Bewerken</a>
-                          <a href='" . esc_url(admin_url("admin-ajax.php?action=dj_srm_offer_pdf&offer_id={$offer->id}&_wpnonce=".wp_create_nonce('dj_srm_nonce'))) . "' class='button button-small'>⬇ PDF</a>
-                          <a href='" . esc_url(admin_url("admin-ajax.php?action=dj_srm_offer_email&offer_id={$offer->id}&_wpnonce=".wp_create_nonce('dj_srm_nonce'))) . "' class='button button-small'>📧 Mail</a>
-                          <button type='button' class='button button-small delete-offer' data-id='{$offer->id}' data-nonce='" . wp_create_nonce('dj_srm_nonce') . "'>🗑 Verwijderen</button>
+                          <a href='".esc_url(admin_url("admin.php?page=dj-srm-offers&view={$offer->id}"))."' class='button button-small'>Bekijken</a>
+                          <a href='".esc_url(admin_url("admin.php?page=dj-srm-offers&edit={$offer->id}"))."' class='button button-small'>Bewerken</a>
+                          <a href='".esc_url(admin_url("admin-ajax.php?action=dj_srm_offer_pdf&offer_id={$offer->id}&_wpnonce=".wp_create_nonce('dj_srm_nonce')))."' class='button button-small'>⬇ PDF</a>
+                          <a href='".esc_url(admin_url("admin-ajax.php?action=dj_srm_offer_email&offer_id={$offer->id}&_wpnonce=".wp_create_nonce('dj_srm_nonce')))."' class='button button-small'>📧 Mail</a>
+                          <button type='button' class='button button-small delete-offer' 
+                                  data-id='{$offer->id}' data-nonce='".wp_create_nonce('dj_srm_nonce')."'>🗑 Verwijderen</button>
                         </td>
                       </tr>";
             }
         } else {
             echo "<tr><td colspan='6'>Geen offertes gevonden.</td></tr>";
         }
-
         echo "</tbody></table></div>";
 
-        // Paginering
+        // === Paginering links ===
         $total_pages = ceil($total_offers / $limit);
         if($total_pages > 1){
             echo "<div class='tablenav'><div class='tablenav-pages'>";
@@ -165,8 +159,33 @@ class DJ_SRM_Offers {
             }
             echo "</div></div>";
         }
-
         echo "</div>";
+
+        // === Verwijderen Script ===
+        ?>
+        <script>
+        jQuery(document).ready(function($){
+            $(".delete-offer").on("click", function(e){
+                e.preventDefault();
+                if(!confirm("Weet je zeker dat je deze offerte wilt verwijderen?")) return;
+                var id = $(this).data("id");
+                var nonce = $(this).data("nonce");
+                $.post(ajaxurl, {
+                    action: "dj_srm_delete_offer",
+                    id: id,
+                    _wpnonce: nonce
+                }, function(resp){
+                    if(resp.success){
+                        alert(resp.data.message);
+                        location.reload();
+                    } else {
+                        alert("Fout: " + resp.data.message);
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
     }
 
     /** --------------------------
@@ -177,7 +196,6 @@ class DJ_SRM_Offers {
         include DJ_SRM_PLUGIN_DIR . 'templates/offers.php';
         return ob_get_clean();
     }
-
     public function render_offer_single($atts) {
         $atts = shortcode_atts(['id' => 0], $atts);
         $offer_id = intval($atts['id']);
@@ -185,7 +203,6 @@ class DJ_SRM_Offers {
         include DJ_SRM_PLUGIN_DIR . 'templates/offer-single.php';
         return ob_get_clean();
     }
-
     public function render_offer_login() {
         ob_start();
         include DJ_SRM_PLUGIN_DIR . 'templates/offer-login.php';
@@ -193,11 +210,10 @@ class DJ_SRM_Offers {
     }
 
     /** --------------------------
-     * Offerte opslaan + mailen
+     * Nieuwe offerte opslaan
      -------------------------- */
     public function handle_new_offer() {
         check_ajax_referer('dj_srm_nonce');
-
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
 
@@ -207,8 +223,7 @@ class DJ_SRM_Offers {
         $discount = floatval($_POST['discount'] ?? 0);
         $subtotal = max(0, $subtotal - $discount);
         $total    = $subtotal + $vat;
-
-        $pincode = rand(100000, 999999);
+        $pincode  = rand(100000, 999999);
 
         $wpdb->insert($table, [
             'offer_number'  => 'DJ-' . time(),
@@ -217,119 +232,87 @@ class DJ_SRM_Offers {
             'client_phone'  => sanitize_text_field($_POST['client_phone']),
             'event_type'    => sanitize_text_field($_POST['event_type']),
             'event_date'    => sanitize_text_field($_POST['event_date']),
-            'start_time'    => sanitize_text_field($_POST['start_time']),
-            'end_time'      => sanitize_text_field($_POST['end_time']),
             'venue_city'    => sanitize_text_field($_POST['venue_city']),
             'items'         => wp_json_encode($items),
             'discount'      => $discount,
             'subtotal'      => $subtotal,
             'vat'           => $vat,
             'total'         => $total,
-            'notes'         => wp_kses_post($_POST['notes']),
-            'terms'         => wp_kses_post($_POST['terms']),
-            'rider'         => wp_kses_post($_POST['rider']),
             'status'        => 'verzonden',
             'valid_until'   => sanitize_text_field($_POST['valid_until']),
             'sent_at'       => current_time('mysql'),
             'pincode'       => $pincode
         ]);
-
         $offer_id = $wpdb->insert_id;
         $offer    = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d",$offer_id));
 
-        // Mail
+        // Mail sturen
         $to      = $offer->client_email;
         $subject = "🎶 Jouw offerte van DJ’s Oostboys (#{$offer->offer_number})";
         ob_start();
         include DJ_SRM_PLUGIN_DIR . 'templates/mail/offer-sent.php';
         $message = ob_get_clean();
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-        wp_mail($to, $subject, $message, $headers);
+        wp_mail($to, $subject, $message, ['Content-Type: text/html; charset=UTF-8']);
 
-        wp_send_json_success([
-            'message'  => 'Offerte aangemaakt en verzonden naar '.$to,
-            'redirect' => admin_url("admin.php?page=dj-srm-offers")
-        ]);
+        wp_send_json_success(['message'=>'Offerte aangemaakt en verzonden','redirect'=>admin_url("admin.php?page=dj-srm-offers")]);
     }
 
     /** --------------------------
-     * PDF genereren
+     * PDF
      -------------------------- */
     public function generate_offer_pdf() {
         check_ajax_referer('dj_srm_nonce');
         if ( ! current_user_can('manage_options') ) wp_die(__('Geen rechten.', 'dj-srm'));
-
         global $wpdb;
         $id = intval($_GET['offer_id']);
         $table = $wpdb->prefix . 'dj_srm_offers';
         $offer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $id));
         if(!$offer) wp_die('Offerte niet gevonden.');
 
-        ob_start();
-        include DJ_SRM_PLUGIN_DIR . 'templates/pdf/offer-pdf.php';
-        $html = ob_get_clean();
-
+        ob_start(); include DJ_SRM_PLUGIN_DIR . 'templates/pdf/offer-pdf.php'; $html = ob_get_clean();
         require_once DJ_SRM_PLUGIN_DIR . 'lib/dompdf/autoload.inc.php';
         $dompdf = new Dompdf\Dompdf();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
+        $dompdf->loadHtml($html); $dompdf->setPaper('A4', 'portrait'); $dompdf->render();
         $dompdf->stream('offerte-'.$offer->offer_number.'.pdf');
         exit;
     }
 
     /** --------------------------
-     * Offerte mailen
+     * Mail
      -------------------------- */
     public function send_offer_email() {
         check_ajax_referer('dj_srm_nonce');
-        if ( ! current_user_can('manage_options') ) wp_send_json_error(['message' => 'Geen rechten.']);
-
+        if ( ! current_user_can('manage_options') ) wp_send_json_error(['message'=>'Geen rechten']);
         global $wpdb;
         $id = intval($_GET['offer_id']);
         $table = $wpdb->prefix . 'dj_srm_offers';
         $offer = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $id));
-        if(!$offer) wp_send_json_error(['message'=>'Offerte niet gevonden.']);
+        if(!$offer) wp_send_json_error(['message'=>'Niet gevonden']);
 
-        $to      = $offer->client_email;
-        $subject = "🎶 Jouw offerte van DJ’s Oostboys (#{$offer->offer_number})";
-        ob_start();
-        include DJ_SRM_PLUGIN_DIR . 'templates/mail/offer-sent.php';
-        $message = ob_get_clean();
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-
-        wp_mail($to, $subject, $message, $headers);
-
-        wp_redirect(admin_url("admin.php?page=dj-srm-offers&view=$id&mail=success"));
-        exit;
+        ob_start(); include DJ_SRM_PLUGIN_DIR . 'templates/mail/offer-sent.php'; $message = ob_get_clean();
+        wp_mail($offer->client_email, "🎶 Jouw offerte (#{$offer->offer_number})", $message, ['Content-Type: text/html; charset=UTF-8']);
+        wp_redirect(admin_url("admin.php?page=dj-srm-offers&view=$id&mail=success")); exit;
     }
 
     /** --------------------------
-     * Offerte verwijderen
+     * Delete
      -------------------------- */
     public function delete_offer() {
         check_ajax_referer('dj_srm_nonce');
-        if ( ! current_user_can('manage_options') ) wp_send_json_error(['message' => 'Geen rechten.']);
-
+        if ( ! current_user_can('manage_options') ) wp_send_json_error(['message'=>'Geen rechten']);
         global $wpdb;
         $id = intval($_POST['id']);
-        $table = $wpdb->prefix . 'dj_srm_offers';
-
-        $deleted = $wpdb->delete($table, ['id'=>$id], ['%d']);
-
-        if($deleted) {
-            wp_send_json_success(['message'=>'Offerte verwijderd']);
-        } else {
-            wp_send_json_error(['message'=>'Verwijderen mislukt']);
-        }
+        $deleted = $wpdb->delete($wpdb->prefix.'dj_srm_offers',['id'=>$id],['%d']);
+        if($deleted) wp_send_json_success(['message'=>'Offerte verwijderd']);
+        else wp_send_json_error(['message'=>'Verwijderen mislukt']);
     }
 
     /** --------------------------
-     * Hulpfunctie: Totals berekenen
+     * Totals berekenen
      -------------------------- */
     private function calc_totals($items) {
         $subtotal=0; $vat=0;
-        foreach ($items as $item) {
+        foreach ((array)$items as $item) {
             $qty = intval($item['qty'] ?? 0);
             $price = floatval($item['price'] ?? 0);
             $vatRate = floatval($item['vat'] ?? 0);
