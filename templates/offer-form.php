@@ -24,7 +24,7 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
         <div class="step" data-step="6">6<br><span>Bevestigen</span></div>
     </div>
 
-    <form id="offerWizard" method="post" action="<?php echo admin_url('admin-ajax.php'); ?>">
+    <form id="offerWizard">
         <!-- AJAX action + nonce -->
         <input type="hidden" name="action" value="dj_srm_add_offer">
         <input type="hidden" name="_ajax_nonce" value="<?php echo esc_attr($offer_nonce); ?>">
@@ -38,7 +38,9 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <input type="email" name="client_email" required>
             <label>Telefoon</label>
             <input type="text" name="client_phone" placeholder="+31 6 ...">
-            <button type="button" class="next button-primary">Volgende ➡</button>
+            <div class="nav-buttons">
+                <button type="button" class="next button-primary">Volgende ➡</button>
+            </div>
         </fieldset>
 
         <!-- Stap 2: Event -->
@@ -58,8 +60,10 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <label>Starttijd</label><input type="time" name="start_time">
             <label>Eindtijd</label><input type="time" name="end_time">
             <label>Aantal gasten</label><input type="text" name="guest_count" placeholder="bijv. 50-75">
-            <button type="button" class="prev button">⬅ Vorige</button>
-            <button type="button" class="next button-primary">Volgende ➡</button>
+            <div class="nav-buttons">
+                <button type="button" class="prev button">⬅ Vorige</button>
+                <button type="button" class="next button-primary">Volgende ➡</button>
+            </div>
         </fieldset>
 
         <!-- Stap 3: Locatie -->
@@ -67,28 +71,30 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <h2>📍 Locatie</h2>
             <label>Type locatie</label>
             <select name="venue_type">
-                <option value="commercieel">Commercieel (zaal, horeca)</option>
-                <option value="prive">Privé (woonhuis, tuin)</option>
+                <option value="commercieel">Commercieel</option>
+                <option value="prive">Privé</option>
             </select>
             <label>Plaats</label><input type="text" name="venue_city">
             <label>Straat</label><input type="text" name="venue_street">
             <label>Huisnummer</label><input type="text" name="venue_number">
             <label>Postcode</label><input type="text" name="venue_postcode">
-            <button type="button" class="prev button">⬅ Vorige</button>
-            <button type="button" class="next button-primary">Volgende ➡</button>
+            <div class="nav-buttons">
+                <button type="button" class="prev button">⬅ Vorige</button>
+                <button type="button" class="next button-primary">Volgende ➡</button>
+            </div>
         </fieldset>
 
         <!-- Stap 4: Items -->
         <fieldset data-step="4" style="display:none;">
             <h2>📝 Offerte-items</h2>
-            <table id="offer-items" class="widefat dj-offer-table">
+            <table id="offer-items" class="widefat striped">
                 <thead>
                     <tr><th>Omschrijving</th><th>Aantal</th><th>Prijs (€)</th><th>BTW %</th><th>Subtotaal</th><th>Actie</th></tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td><input type="text" name="items[0][item]" required></td>
-                        <td><input type="number" name="items[0][qty]" value="1"></td>
+                        <td><input type="number" name="items[0][qty]" value="1" min="1"></td>
                         <td><input type="number" step="0.01" name="items[0][price]" value="0.00"></td>
                         <td>
                             <select name="items[0][vat]">
@@ -110,16 +116,20 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
                 <p><strong>Totaal: <span id="total">€ 0.00</span></strong></p>
             </div>
 
-            <button type="button" class="prev button">⬅ Vorige</button>
-            <button type="button" class="next button-primary">Volgende ➡</button>
+            <div class="nav-buttons">
+                <button type="button" class="prev button">⬅ Vorige</button>
+                <button type="button" class="next button-primary">Volgende ➡</button>
+            </div>
         </fieldset>
 
         <!-- Stap 5: Rider -->
         <fieldset data-step="5" style="display:none;">
             <h2>🎤 Rider (techniek / hospitality)</h2>
             <textarea name="rider" rows="6" placeholder="Beschrijf techniek, eten/drinken, logistiek..."></textarea>
-            <button type="button" class="prev button">⬅ Vorige</button>
-            <button type="button" class="next button-primary">Volgende ➡</button>
+            <div class="nav-buttons">
+                <button type="button" class="prev button">⬅ Vorige</button>
+                <button type="button" class="next button-primary">Volgende ➡</button>
+            </div>
         </fieldset>
 
         <!-- Stap 6: Bevestiging -->
@@ -130,8 +140,92 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <label>Korting (€)</label><input type="number" step="0.01" name="discount" value="0.00">
             <label>Geldig tot</label><input type="date" name="valid_until">
 
-            <button type="button" class="prev button">⬅ Vorige</button>
-            <button type="submit" class="button-primary">Opslaan & Versturen</button>
+            <div class="nav-buttons">
+                <button type="button" class="prev button">⬅ Vorige</button>
+                <button type="submit" class="button-primary">Opslaan & Versturen</button>
+            </div>
         </fieldset>
     </form>
+
+    <!-- Meldingen -->
+    <div id="offer-message" style="margin-top:20px;"></div>
 </div>
+
+<script>
+jQuery(function($){
+    let currentStep = 1;
+
+    function showStep(step){
+        $("fieldset").hide();
+        $("fieldset[data-step="+step+"]").show();
+        $(".dj-progressbar .step").removeClass("active");
+        $(".dj-progressbar .step[data-step="+step+"]").addClass("active");
+        currentStep = step;
+    }
+
+    $(".next").on("click", function(){ showStep(currentStep+1); });
+    $(".prev").on("click", function(){ showStep(currentStep-1); });
+
+    // Items toevoegen/verwijderen
+    $("#add-offer-item").on("click", function(){
+        let rowCount = $("#offer-items tbody tr").length;
+        let row = `<tr>
+            <td><input type="text" name="items[${rowCount}][item]" required></td>
+            <td><input type="number" name="items[${rowCount}][qty]" value="1" min="1"></td>
+            <td><input type="number" step="0.01" name="items[${rowCount}][price]" value="0.00"></td>
+            <td>
+                <select name="items[${rowCount}][vat]">
+                    <option value="21">21%</option>
+                    <option value="9">9%</option>
+                    <option value="0">0%</option>
+                </select>
+            </td>
+            <td class="subtotal">€ 0.00</td>
+            <td><button type="button" class="remove-item button">X</button></td>
+        </tr>`;
+        $("#offer-items tbody").append(row);
+    });
+
+    $(document).on("click",".remove-item", function(){
+        $(this).closest("tr").remove();
+        recalcTotals();
+    });
+
+    // Recalc totals
+    $(document).on("input change","#offer-items input, #offer-items select", function(){
+        recalcTotals();
+    });
+
+    function recalcTotals(){
+        let subtotal=0, vat=0;
+        $("#offer-items tbody tr").each(function(){
+            let qty   = parseFloat($(this).find("input[name*='[qty]']").val()) || 0;
+            let price = parseFloat($(this).find("input[name*='[price]']").val()) || 0;
+            let vatRate = parseFloat($(this).find("select[name*='[vat]']").val()) || 0;
+            let line = qty*price;
+            let lineVat = line*(vatRate/100);
+            subtotal += line;
+            vat += lineVat;
+            $(this).find(".subtotal").text("€ "+line.toFixed(2));
+        });
+        $("#subtotal").text("€ "+subtotal.toFixed(2));
+        $("#vat").text("€ "+vat.toFixed(2));
+        $("#total").text("€ "+(subtotal+vat).toFixed(2));
+    }
+
+    // AJAX Submit
+    $("#offerWizard").on("submit", function(e){
+        e.preventDefault();
+        let formData = $(this).serialize();
+        $("#offer-message").html("<div class='notice notice-info'><p>Bezig met opslaan...</p></div>");
+        $.post(ajaxurl, formData, function(resp){
+            if(resp.success){
+                $("#offer-message").html("<div class='notice notice-success'><p>"+resp.data.message+"</p></div>");
+                if(resp.data.redirect){ window.location.href = resp.data.redirect; }
+            } else {
+                $("#offer-message").html("<div class='notice notice-error'><p>Fout: "+resp.data.message+"</p></div>");
+            }
+        });
+    });
+});
+</script>
