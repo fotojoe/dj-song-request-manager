@@ -13,7 +13,6 @@ if ( ! isset($offer) ) {
 }
 
 $items = json_decode($offer->items, true);
-$rider = json_decode($offer->rider ?? "{}", true);
 $offer_nonce = wp_create_nonce('dj_srm_nonce');
 ?>
 
@@ -32,8 +31,8 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
 
     <form id="offerEditForm" method="post" action="<?php echo admin_url('admin-ajax.php'); ?>">
         <input type="hidden" name="action" value="dj_srm_update_offer">
-        <input type="hidden" name="offer_id" value="<?php echo $offer->id; ?>">
-        <input type="hidden" name="_ajax_nonce" value="<?php echo $offer_nonce; ?>">
+        <input type="hidden" name="offer_id" value="<?php echo (int) $offer->id; ?>">
+        <input type="hidden" name="_ajax_nonce" value="<?php echo esc_attr($offer_nonce); ?>">
 
         <!-- Stap 1: Klant -->
         <fieldset data-step="1">
@@ -50,7 +49,16 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
         <!-- Stap 2: Event -->
         <fieldset data-step="2" style="display:none;">
             <h2>🎉 Eventdetails</h2>
-            <label>Soort Event</label><input type="text" name="event_type" value="<?php echo esc_attr($offer->event_type); ?>">
+            <label>Soort Event</label>
+            <select name="event_type" required>
+                <option value="">-- Kies --</option>
+                <option value="Bruiloft" <?php selected($offer->event_type,'Bruiloft'); ?>>💍 Bruiloft</option>
+                <option value="Verjaardag" <?php selected($offer->event_type,'Verjaardag'); ?>>🎂 Verjaardag</option>
+                <option value="Zakelijk" <?php selected($offer->event_type,'Zakelijk'); ?>>🏢 Zakelijk feest</option>
+                <option value="Festival" <?php selected($offer->event_type,'Festival'); ?>>🎪 Festival</option>
+                <option value="Kinderfeest" <?php selected($offer->event_type,'Kinderfeest'); ?>>🎈 Kinderfeest</option>
+                <option value="Anders" <?php selected($offer->event_type,'Anders'); ?>>❓ Anders</option>
+            </select>
             <label>Datum</label><input type="date" name="event_date" value="<?php echo esc_attr($offer->event_date); ?>">
             <label>Starttijd</label><input type="time" name="start_time" value="<?php echo esc_attr($offer->start_time); ?>">
             <label>Eindtijd</label><input type="time" name="end_time" value="<?php echo esc_attr($offer->end_time); ?>">
@@ -78,7 +86,7 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
         <!-- Stap 4: Items -->
         <fieldset data-step="4" style="display:none;">
             <h2>📝 Offerte-items</h2>
-            <table id="offer-items" class="widefat">
+            <table id="offer-items" class="widefat dj-offer-table">
                 <thead>
                     <tr><th>Omschrijving</th><th>Aantal</th><th>Prijs (€)</th><th>BTW %</th><th>Subtotaal</th><th>Actie</th></tr>
                 </thead>
@@ -114,9 +122,7 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
         <!-- Stap 5: Rider -->
         <fieldset data-step="5" style="display:none;">
             <h2>🎤 Rider</h2>
-            <label>Eten & drinken</label><textarea name="rider[eten]"><?php echo esc_textarea($rider['eten'] ?? ''); ?></textarea>
-            <label>Techniek</label><textarea name="rider[techniek]"><?php echo esc_textarea($rider['techniek'] ?? ''); ?></textarea>
-            <label>Logistiek</label><textarea name="rider[logistiek]"><?php echo esc_textarea($rider['logistiek'] ?? ''); ?></textarea>
+            <textarea name="rider" rows="6"><?php echo esc_textarea($offer->rider); ?></textarea>
             <button type="button" class="prev button">⬅ Vorige</button>
             <button type="button" class="next button-primary">Volgende ➡</button>
         </fieldset>
@@ -126,6 +132,7 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <h2>✅ Bevestigen</h2>
             <label>Notities</label><textarea name="notes"><?php echo esc_textarea($offer->notes); ?></textarea>
             <label>Voorwaarden</label><textarea name="terms"><?php echo esc_textarea($offer->terms); ?></textarea>
+            <label>Korting (€)</label><input type="number" step="0.01" name="discount" value="<?php echo esc_attr($offer->discount); ?>">
             <label>Geldig tot</label><input type="date" name="valid_until" value="<?php echo esc_attr($offer->valid_until); ?>">
             <button type="button" class="prev button">⬅ Vorige</button>
             <button type="submit" class="button-primary">💾 Opslaan</button>

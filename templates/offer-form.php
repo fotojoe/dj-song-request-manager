@@ -27,25 +27,26 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
     <form id="offerWizard" method="post" action="<?php echo admin_url('admin-ajax.php'); ?>">
         <!-- AJAX action + nonce -->
         <input type="hidden" name="action" value="dj_srm_add_offer">
-        <input type="hidden" name="_ajax_nonce" value="<?php echo $offer_nonce; ?>">
+        <input type="hidden" name="_ajax_nonce" value="<?php echo esc_attr($offer_nonce); ?>">
 
-        <!-- Stap 1: Klantgegevens -->
+        <!-- Stap 1: Klant -->
         <fieldset data-step="1">
             <h2>👤 Klantgegevens</h2>
-            <label>Voornaam</label><input type="text" name="first_name" required>
-            <label>Achternaam</label><input type="text" name="last_name" required>
-            <label>Volledige naam</label><input type="text" name="client_name" required>
-            <label>Email</label><input type="email" name="client_email" required>
-            <label>Telefoon</label><input type="text" name="client_phone" placeholder="+31 6 ...">
+            <label>Naam</label>
+            <input type="text" name="client_name" required>
+            <label>Email</label>
+            <input type="email" name="client_email" required>
+            <label>Telefoon</label>
+            <input type="text" name="client_phone" placeholder="+31 6 ...">
             <button type="button" class="next button-primary">Volgende ➡</button>
         </fieldset>
 
-        <!-- Stap 2: Eventdetails -->
+        <!-- Stap 2: Event -->
         <fieldset data-step="2" style="display:none;">
             <h2>🎉 Eventdetails</h2>
             <label>Soort Event</label>
             <select name="event_type" required>
-                <option value="">-- Kies een eventtype --</option>
+                <option value="">-- Kies --</option>
                 <option value="Bruiloft">💍 Bruiloft</option>
                 <option value="Verjaardag">🎂 Verjaardag</option>
                 <option value="Zakelijk">🏢 Zakelijk feest</option>
@@ -66,8 +67,8 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <h2>📍 Locatie</h2>
             <label>Type locatie</label>
             <select name="venue_type">
-                <option value="commercieel">Commercieel (zaal, horeca, trouwlocatie)</option>
-                <option value="prive">Privé (woonhuis, tuin, bedrijf)</option>
+                <option value="commercieel">Commercieel (zaal, horeca)</option>
+                <option value="prive">Privé (woonhuis, tuin)</option>
             </select>
             <label>Plaats</label><input type="text" name="venue_city">
             <label>Straat</label><input type="text" name="venue_street">
@@ -77,10 +78,10 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <button type="button" class="next button-primary">Volgende ➡</button>
         </fieldset>
 
-        <!-- Stap 4: Offerte-items -->
+        <!-- Stap 4: Items -->
         <fieldset data-step="4" style="display:none;">
             <h2>📝 Offerte-items</h2>
-            <table id="offer-items" class="widefat">
+            <table id="offer-items" class="widefat dj-offer-table">
                 <thead>
                     <tr><th>Omschrijving</th><th>Aantal</th><th>Prijs (€)</th><th>BTW %</th><th>Subtotaal</th><th>Actie</th></tr>
                 </thead>
@@ -115,13 +116,8 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
 
         <!-- Stap 5: Rider -->
         <fieldset data-step="5" style="display:none;">
-            <h2>🎤 Rider (Eten, drinken & techniek)</h2>
-            <label>Eten & drinken</label>
-            <textarea name="rider[eten]" rows="3" placeholder="Warme maaltijd, water, fris, bier..."></textarea>
-            <label>Technische wensen</label>
-            <textarea name="rider[techniek]" rows="3" placeholder="CDJ-3000, DJM-900, 2x monitor"></textarea>
-            <label>Logistiek</label>
-            <textarea name="rider[logistiek]" rows="3" placeholder="Parkeerplek, kleedkamer, contactpersoon..."></textarea>
+            <h2>🎤 Rider (techniek / hospitality)</h2>
+            <textarea name="rider" rows="6" placeholder="Beschrijf techniek, eten/drinken, logistiek..."></textarea>
             <button type="button" class="prev button">⬅ Vorige</button>
             <button type="button" class="next button-primary">Volgende ➡</button>
         </fieldset>
@@ -131,6 +127,7 @@ $offer_nonce = wp_create_nonce('dj_srm_nonce');
             <h2>✅ Bevestig & Verstuur</h2>
             <label>Notities</label><textarea name="notes"></textarea>
             <label>Voorwaarden</label><textarea name="terms"></textarea>
+            <label>Korting (€)</label><input type="number" step="0.01" name="discount" value="0.00">
             <label>Geldig tot</label><input type="date" name="valid_until">
 
             <button type="button" class="prev button">⬅ Vorige</button>

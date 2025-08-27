@@ -13,21 +13,21 @@ class DJ_SRM_Offers {
         add_action('admin_menu', [$this, 'register_admin_menu']);
 
         // Shortcodes
-        add_shortcode('dj_offers', [$this, 'render_offers']);
-        add_shortcode('dj_offer', [$this, 'render_offer_single']);
-        add_shortcode('dj_offer_login', [$this, 'render_offer_login']); // klant login via mail + pincode
+        add_shortcode('dj_offers',        [$this, 'render_offers']);
+        add_shortcode('dj_offer',         [$this, 'render_offer_single']);
+        add_shortcode('dj_offer_login',   [$this, 'render_offer_login']);
 
         // AJAX handlers
-        add_action('wp_ajax_dj_srm_add_offer', [$this, 'handle_new_offer']);
-        add_action('wp_ajax_dj_srm_update_offer', [$this, 'update_offer']);
-        add_action('wp_ajax_dj_srm_update_offer_status', [$this, 'update_offer_status']);
-        add_action('wp_ajax_nopriv_dj_srm_update_offer_status', [$this, 'update_offer_status']);
-        add_action('wp_ajax_dj_srm_delete_offer', [$this, 'delete_offer']); // ✅ nu in constructor
+        add_action('wp_ajax_dj_srm_add_offer',          [$this, 'handle_new_offer']);
+        add_action('wp_ajax_dj_srm_update_offer',       [$this, 'update_offer']);
+        add_action('wp_ajax_dj_srm_update_offer_status',[$this, 'update_offer_status']);
+        add_action('wp_ajax_nopriv_dj_srm_update_offer_status',[$this, 'update_offer_status']);
+        add_action('wp_ajax_dj_srm_delete_offer',       [$this, 'delete_offer']);
     }
 
-    /**
+    /** --------------------------
      * Admin Menu
-     */
+     -------------------------- */
     public function register_admin_menu() {
         add_submenu_page(
             'dj-srm-dashboard',
@@ -39,9 +39,9 @@ class DJ_SRM_Offers {
         );
     }
 
-    /**
+    /** --------------------------
      * Admin Pagina
-     */
+     -------------------------- */
     public function admin_page() {
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
@@ -86,17 +86,18 @@ class DJ_SRM_Offers {
 
         if ($offers) {
             foreach ($offers as $offer) {
+                $total = number_format((float)$offer->total, 2, ",", ".");
                 echo "<tr>
                         <td>{$offer->id}</td>
-                        <td>{$offer->client_name}</td>
-                        <td>{$offer->client_email}</td>
-                        <td>€ " . number_format($offer->total,2,",",".") . "</td>
-                        <td>{$offer->status}</td>
+                        <td>" . esc_html($offer->client_name) . "</td>
+                        <td>" . esc_html($offer->client_email) . "</td>
+                        <td>€ {$total}</td>
+                        <td>" . esc_html($offer->status) . "</td>
                         <td>
-                          <a href='" . admin_url("admin.php?page=dj-srm-offers&view={$offer->id}") . "' class='button'>Bekijken</a>
-                          <a href='" . admin_url("admin.php?page=dj-srm-offers&edit={$offer->id}") . "' class='button'>Bewerken</a>
+                          <a href='" . esc_url(admin_url("admin.php?page=dj-srm-offers&view={$offer->id}")) . "' class='button'>Bekijken</a>
+                          <a href='" . esc_url(admin_url("admin.php?page=dj-srm-offers&edit={$offer->id}")) . "' class='button'>Bewerken</a>
                           <button class='button delete-offer' data-id='{$offer->id}' data-nonce='" . wp_create_nonce('dj_srm_nonce') . "'>🗑 Verwijderen</button>
-                          <a href='" . site_url("/offers/?id={$offer->id}") . "' target='_blank' class='button'>Publieke link</a>
+                          <a href='" . esc_url(site_url("/offers/?id={$offer->id}")) . "' target='_blank' class='button'>Publieke link</a>
                         </td>
                       </tr>";
             }
@@ -114,9 +115,9 @@ class DJ_SRM_Offers {
         echo "</div>";
     }
 
-    /**
+    /** --------------------------
      * Shortcodes
-     */
+     -------------------------- */
     public function render_offers() {
         ob_start();
         include DJ_SRM_PLUGIN_DIR . 'templates/offers.php';
@@ -125,8 +126,8 @@ class DJ_SRM_Offers {
 
     public function render_offer_single($atts) {
         $atts = shortcode_atts(['id' => 0], $atts);
-        ob_start();
         $offer_id = intval($atts['id']);
+        ob_start();
         include DJ_SRM_PLUGIN_DIR . 'templates/offer-single.php';
         return ob_get_clean();
     }
@@ -137,34 +138,24 @@ class DJ_SRM_Offers {
         return ob_get_clean();
     }
 
-    /**
+    /** --------------------------
      * AJAX: Nieuwe offerte opslaan
-     */
+     -------------------------- */
     public function handle_new_offer() {
+        check_ajax_referer('dj_srm_nonce');
+
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
 
         $items = isset($_POST['items']) ? (array) $_POST['items'] : [];
-        $subtotal = 0; $vat = 0;
-
-        foreach ($items as $item) {
-            $qty = intval($item['qty'] ?? 0);
-            $price = floatval($item['price'] ?? 0);
-            $vatRate = floatval($item['vat'] ?? 0);
-
-            $lineSubtotal = $qty * $price;
-            $lineVat = $lineSubtotal * ($vatRate/100);
-
-            $subtotal += $lineSubtotal;
-            $vat += $lineVat;
-        }
+        list($subtotal,$vat) = $this->calc_totals($items);
 
         $discount = floatval($_POST['discount'] ?? 0);
         $subtotal = max(0, $subtotal - $discount);
-        $total = $subtotal + $vat;
+        $total    = $subtotal + $vat;
 
         $wpdb->insert($table, [
-            'offer_number' => uniqid("DJ-"),
+            'offer_number' => 'DJ-' . time(),
             'client_email' => sanitize_email($_POST['client_email']),
             'client_name'  => sanitize_text_field($_POST['client_name']),
             'client_phone' => sanitize_text_field($_POST['client_phone']),
@@ -178,8 +169,9 @@ class DJ_SRM_Offers {
             'subtotal'     => $subtotal,
             'vat'          => $vat,
             'total'        => $total,
-            'notes'        => sanitize_textarea_field($_POST['notes']),
-            'terms'        => sanitize_textarea_field($_POST['terms']),
+            'notes'        => wp_kses_post($_POST['notes']),
+            'terms'        => wp_kses_post($_POST['terms']),
+            'rider'        => wp_kses_post($_POST['rider']),
             'status'       => 'verzonden',
             'valid_until'  => sanitize_text_field($_POST['valid_until']),
             'sent_at'      => current_time('mysql')
@@ -195,28 +187,21 @@ class DJ_SRM_Offers {
         ]);
     }
 
-    /**
+    /** --------------------------
      * AJAX: Offerte bijwerken
-     */
+     -------------------------- */
     public function update_offer() {
+        check_ajax_referer('dj_srm_nonce');
+
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
-        $id = intval($_POST['offer_id']);
+        $id    = intval($_POST['offer_id']);
 
         $items = isset($_POST['items']) ? (array) $_POST['items'] : [];
-        $subtotal = 0; $vat = 0;
-
-        foreach ($items as $item) {
-            $qty = intval($item['qty'] ?? 0);
-            $price = floatval($item['price'] ?? 0);
-            $vatRate = floatval($item['vat'] ?? 0);
-            $lineSubtotal = $qty * $price;
-            $lineVat = $lineSubtotal * ($vatRate/100);
-            $subtotal += $lineSubtotal;
-            $vat += $lineVat;
-        }
-
-        $total = $subtotal + $vat;
+        list($subtotal,$vat) = $this->calc_totals($items);
+        $discount = floatval($_POST['discount'] ?? 0);
+        $subtotal = max(0, $subtotal - $discount);
+        $total    = $subtotal + $vat;
 
         $wpdb->update($table, [
             'client_name'  => sanitize_text_field($_POST['client_name']),
@@ -228,29 +213,32 @@ class DJ_SRM_Offers {
             'end_time'     => sanitize_text_field($_POST['end_time']),
             'venue_city'   => sanitize_text_field($_POST['venue_city']),
             'items'        => wp_json_encode($items),
+            'discount'     => $discount,
             'subtotal'     => $subtotal,
             'vat'          => $vat,
             'total'        => $total,
-            'notes'        => sanitize_textarea_field($_POST['notes']),
-            'terms'        => sanitize_textarea_field($_POST['terms']),
+            'notes'        => wp_kses_post($_POST['notes']),
+            'terms'        => wp_kses_post($_POST['terms']),
+            'rider'        => wp_kses_post($_POST['rider']),
             'valid_until'  => sanitize_text_field($_POST['valid_until']),
             'updated_at'   => current_time('mysql')
         ], ['id' => $id]);
 
         wp_send_json_success([
-            'message' => 'Offerte bijgewerkt.',
+            'message'    => 'Offerte bijgewerkt.',
             'admin_link' => admin_url("admin.php?page=dj-srm-offers&view=$id")
         ]);
     }
 
-    /**
+    /** --------------------------
      * AJAX: Status bijwerken
-     */
+     -------------------------- */
     public function update_offer_status() {
+        check_ajax_referer('dj_srm_nonce');
+
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
-
-        $id     = intval($_POST['id']);
+        $id     = intval($_POST['offer_id'] ?? $_POST['id']);
         $status = sanitize_text_field($_POST['status']);
 
         $wpdb->update($table, ['status' => $status], ['id' => $id]);
@@ -258,30 +246,46 @@ class DJ_SRM_Offers {
         wp_send_json_success(['message' => 'Status bijgewerkt naar: ' . $status]);
     }
 
-    /**
+    /** --------------------------
      * AJAX: Offerte verwijderen
-     */
+     -------------------------- */
     public function delete_offer() {
         if ( ! current_user_can('manage_options') ) {
             wp_send_json_error(['message' => 'Geen rechten om offertes te verwijderen.']);
         }
-
         check_ajax_referer('dj_srm_nonce');
 
         global $wpdb;
         $table = $wpdb->prefix . 'dj_srm_offers';
-        $id = intval($_POST['id']);
+        $id    = intval($_POST['id']);
 
         $deleted = $wpdb->delete($table, ['id' => $id], ['%d']);
 
         if ($deleted !== false) {
             wp_send_json_success([
-                'message' => 'Offerte verwijderd.',
+                'message'  => 'Offerte verwijderd.',
                 'redirect' => admin_url("admin.php?page=dj-srm-offers")
             ]);
         } else {
             wp_send_json_error(['message' => 'Verwijderen mislukt.']);
         }
+    }
+
+    /** --------------------------
+     * Hulpfunctie: Totals berekenen
+     -------------------------- */
+    private function calc_totals($items) {
+        $subtotal=0; $vat=0;
+        foreach ($items as $item) {
+            $qty = intval($item['qty'] ?? 0);
+            $price = floatval($item['price'] ?? 0);
+            $vatRate = floatval($item['vat'] ?? 0);
+            $lineSubtotal = $qty * $price;
+            $lineVat = $lineSubtotal * ($vatRate/100);
+            $subtotal += $lineSubtotal;
+            $vat      += $lineVat;
+        }
+        return [$subtotal,$vat];
     }
 }
 
